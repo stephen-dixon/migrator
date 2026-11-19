@@ -188,3 +188,29 @@ re-implement Python badly.
   all fail explicitly.
 - **Adapters are arbitrary Python.** The determinism check and validation before and after
   are the only guards; review and fixtures carry the rest.
+
+## Addendum: iteration 2, the journal workflow
+
+This implements the hybrid from section 6. Schemas are hand-edited, and each edit's intent
+is recorded as a granular change scope in an append-only JSON Lines journal, then folded at
+release. Findings:
+
+- **Equivalence with the YAML approach.** The mappings 1.1.0→2.0.0 release, re-authored as
+  six journal scopes (rename, discriminator rename, nest, wrap, two adds), produces a schema
+  equivalent to the YAML-generated one and **identical** migrations of both fixtures
+  (`test_journal_reauthoring_matches_the_yaml_changeset`). The engine needed one extension:
+  `nest-fields` accepts the hand-written container schema.
+- **The formatting problem is solved.** A release snapshot is the working file byte for
+  byte with only `$id` changed. A two-field release of the compact config schema is a
+  3-line diff, against about 165 lines in iteration 1.
+- **Inference is reliable when scoped.** With the class declared, each class needs only
+  "exactly one key added/removed/changed at the target". Anything else blocks the commit
+  with a pointer-level explanation. Pairing enum values by position is the one convention
+  developers have to know.
+- **Overlap detection is coarse and conservative.** It is diff-based: two scopes that both
+  edit an object's `required` list are flagged as overlapping even when their order doesn't
+  matter. Replay is the real backstop.
+- **Rough edges.** Residual messages show normalised (sorted) enums. `check` stops at the
+  first replay failure. A release on one branch truncates the journal, so branches still
+  holding pre-release records must rebase. That is detected ("follows unknown record") but
+  not resolved for you. Multiple schema kinds share one session at a time.

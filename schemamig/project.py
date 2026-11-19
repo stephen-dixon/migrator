@@ -55,6 +55,10 @@ class Changeset:
     adapter: O.Adapter | None = None
     preserve_paths: list[str] = field(default_factory=list)
     invalidate_paths: list[str] = field(default_factory=list)
+    # journal-released declarative edges: the hand-edited schema is authoritative and the
+    # operations must replay to it (modulo annotations)
+    snapshot_file: Path | None = None
+    changes: list[dict] = field(default_factory=list)
 
     @property
     def name(self) -> str:
@@ -105,7 +109,7 @@ class Changeset:
 
 CS_KEYS = {"from", "to", "kind", "document_kind", "description", "compatibility", "version_path",
            "operations", "schema", "reason", "instance_migration", "adapter", "preserve_paths",
-           "invalidate_paths"}
+           "invalidate_paths", "schema_snapshot", "changes"}
 
 
 def load_changeset(path: Path) -> Changeset:
@@ -136,6 +140,9 @@ def load_changeset(path: Path) -> Changeset:
             if not raw.get("operations"):
                 raise O.DslError("declarative changeset needs a non-empty 'operations' list")
             cs.operations = [O.parse_op(s, base) for s in raw["operations"]]
+            if "schema_snapshot" in raw:
+                cs.snapshot_file = (base / raw["schema_snapshot"]).resolve()
+            cs.changes = list(raw.get("changes", []))
         elif kind == "manual-baseline":
             if "operations" in raw:
                 raise O.DslError("manual-baseline edges cannot have operations (the schema file is the result)")
@@ -172,6 +179,8 @@ class Kind:
     generated: Path
     version_path: str | None
     fixtures: Path | None = None
+    schema_file: Path | None = None   # working (hand-edited) schema, journal mode
+    journal: Path | None = None
     _chain: list[Changeset] | None = None
     _schemas: dict[str, dict] | None = None
     warnings: list[str] = field(default_factory=list)
@@ -274,6 +283,17 @@ class Kind:
                 nxt = {**nxt, "$id": schema_id(self.name, e.to)} if "$id" in nxt else \
                     {"$id": schema_id(self.name, e.to), **nxt}
                 check_metaschema(nxt)
+                if e.snapshot_file:
+                    from .schemadiff import equivalent, residual
+                    snap = load_json(e.snapshot_file)
+                    if snap.get("$id") != schema_id(self.name, e.to):
+                        raise SchemaError(f"{e.file.name}: snapshot $id {snap.get('$id')!r} != "
+                                          f"{schema_id(self.name, e.to)!r}")
+                    if not equivalent(nxt, snap):
+                        raise O.DslError(f"{e.file.name}: operations do not replay to the schema snapshot "
+                                         f"{e.snapshot_file.name}:\n  " + "\n  ".join(residual(nxt, snap)))
+                    check_metaschema(snap)
+                    nxt = snap
             out[e.to] = nxt
             cur = nxt
         self._schemas = out
@@ -292,7 +312,9 @@ class Project:
         for name, k in (raw.get("kinds") or {}).items():
             r = self.root
             self.kinds[name] = Kind(name, r, r / k["baseline"], r / k["migrations"], r / k["generated"],
-                                    k.get("version_path"), (r / k["fixtures"]) if k.get("fixtures") else None)
+                                    k.get("version_path"), (r / k["fixtures"]) if k.get("fixtures") else None,
+                                    (r / k["schema"]) if k.get("schema") else None,
+                                    (r / k["journal"]) if k.get("journal") else None)
 
     def kind(self, name: str | None) -> Kind:
         if name is None:
@@ -315,8 +337,9 @@ class Project:
 def generate(kind: Kind, write: bool) -> list[tuple[Path, str]]:
     """Return [(path, status)] where status in {'ok','changed','new'}; write if asked."""
     res = []
+    snap_versions = {e.to for e in kind.chain() if e.snapshot_file}
     for v, s in kind.schemas().items():
-        if v == kind.baseline_version:
+        if v == kind.baseline_version or v in snap_versions:
             continue
         path = kind.generated_path(v)
         text = dump_json(s)

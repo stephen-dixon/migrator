@@ -530,7 +530,7 @@ class AddVariant(Operation):
 class NestFields(FieldOp):
     op = "nest-fields"
     required_keys = {"at", "fields", "into"}
-    optional_keys = {"description"}
+    optional_keys = {"description", "schema"}  # schema: container as hand-written (journal mode)
     effect = REWRITE
 
     def describe(self):
@@ -548,14 +548,24 @@ class NestFields(FieldOp):
         if into in props:
             raise DslError(f"nest-fields: {into!r} already exists at {ptr}")
         req = node.get("required", [])
-        sub: dict = {"type": "object"}
-        if "description" in self.spec:
-            sub = {"description": self.spec["description"], **sub}
-        sub["properties"] = {f: props[f] for f in fields}
         moved_req = [f for f in fields if f in req]
-        if moved_req:
-            sub["required"] = moved_req
-        sub["additionalProperties"] = False
+        if "schema" in self.spec:
+            from .schemadiff import equivalent
+            sub = copy.deepcopy(self.spec["schema"])
+            inner = sub.get("properties", {})
+            if set(inner) != set(fields) or not all(equivalent(inner[f], props[f]) for f in fields):
+                raise DslError(f"nest-fields: container schema must hold exactly the moved fields "
+                               f"{fields} with unchanged schemas")
+            if sorted(sub.get("required", [])) != sorted(moved_req):
+                raise DslError(f"nest-fields: container 'required' must be {moved_req}")
+        else:
+            sub = {"type": "object"}
+            if "description" in self.spec:
+                sub = {"description": self.spec["description"], **sub}
+            sub["properties"] = {f: props[f] for f in fields}
+            if moved_req:
+                sub["required"] = moved_req
+            sub["additionalProperties"] = False
         first = min(list(props).index(f) for f in fields)
         rest = {k: v for k, v in props.items() if k not in fields}
         node["properties"] = insert_at(rest, into, sub, first)

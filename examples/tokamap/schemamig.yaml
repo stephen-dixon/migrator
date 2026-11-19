@@ -1,4 +1,6 @@
-# Each document kind = one explicit baseline snapshot + a linear chain of changesets.
+# Each document kind = one explicit baseline snapshot + a linear chain of release records.
+# Journal mode: edit `schema` by hand, record intent with `schemamig change ...`,
+# fold with `schemamig release <version>`.
 # Generated schemas are build outputs, committed so reviewers see them in diffs
 # (CI runs `schemamig build --check`).
 kinds:
@@ -7,10 +9,14 @@ kinds:
     migrations: migrations/mappings
     generated: generated
     fixtures: fixtures/mappings
+    schema: schemas/tokamap-mappings.schema.json   # working schema: hand-edited (journal mode)
+    journal: changes/tokamap-mappings.jsonl        # unreleased change records
     version_path: /version        # bare mapping files carry "version": "x.y.z" at the top
   tokamap-config:
     baseline: baselines/tokamap-config-1.0.0.json
     migrations: migrations/config
     generated: generated
     fixtures: fixtures/config
+    schema: schemas/tokamap-config.schema.json
+    journal: changes/tokamap-config.jsonl
     version_path: null            # legacy: mappings.cfg.json is unversioned (metadata.version is CONTENT version)

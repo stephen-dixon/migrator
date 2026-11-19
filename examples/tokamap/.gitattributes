@@ -1,0 +1,3 @@
+# Journals are append-only JSON Lines: keep both sides' appended lines on merge.
+# `schemamig check` then detects concurrent records that touch overlapping locations.
+changes/*.jsonl merge=union

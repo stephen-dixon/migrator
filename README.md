@@ -16,7 +16,7 @@ baseline schema (hand-written snapshot)
 
 ```bash
 python3 -m venv .venv && .venv/bin/pip install -e '.[test]'
-.venv/bin/pytest -q                       # 49 tests: unit (op semantics) + e2e (example project)
+.venv/bin/pytest -q                       # 67 tests: ops, e2e (example project), journal workflow
 
 cd examples/tokamap
 S=../../.venv/bin/schemamig
@@ -30,6 +30,45 @@ $S impact fixtures/config/1.0.0/*.json --kind tokamap-config --edge 1.2.0 --from
 $S new --kind tokamap-mappings --to 2.2.0  # changeset skeleton at the head of the chain
 $S lint-schema ../../tests/data/libtokamap-globals.schema.json   # shows an unsupported-construct error
 ```
+
+## Journal workflow (iteration 2)
+
+You edit the schema by hand, and record the intent of each edit as a small change
+scope. The scopes accumulate in an append-only journal, and a release folds them into
+one version step.
+
+```bash
+schemamig change begin add-field def:rule --kind tokamap-config --reason "..." --compat backward-compatible
+#   ...edit schemas/tokamap-config.schema.json in your editor...
+schemamig change status [--json]        # "waiting for your edit" / "ready" + inferred ops (for statuslines)
+schemamig change commit                 # infer ops from the scoped diff, verify by replay, append to the journal
+schemamig change record rename-value def:rule --name fallback --kind tokamap-config   # declare after editing
+schemamig change list | reopen <id> | drop <id> | abort | classes
+schemamig check                         # CI gate
+schemamig release 2.1.0 --kind tokamap-config
+```
+
+- **Expected state is replayed, not stored.** The expected schema is always
+  `replay(last release, journal)`. The session file (`.schemamig/session.json`, gitignored)
+  only holds the declared class, target and metadata. You can therefore declare a change
+  before or after editing, and a lost session can't corrupt anything.
+- **Scoped inference.** The declared class (`change classes`) narrows the diff, and the
+  tool fills in the operation's parameters. A full replay must then match the working schema,
+  so an edit the scope doesn't explain blocks the commit and is listed.
+- **Annotations are free.** `description`, `title`, `$comment`, `examples`, key order and
+  the order of `required`/`enum`/`oneOf` can't affect validation. They never need a record.
+- **Journal** (`changes/<kind>.jsonl`): one JSON record per line. Each record has an `id`
+  and the `after` id it was written on top of. Amend and drop are new records, never
+  edits. `.gitattributes` sets `merge=union`. `check` detects records written concurrently
+  on different branches (same `after`). It flags them only if they touch overlapping schema
+  locations, and you resolve that by re-pointing the later record's `after`.
+- **`check`** requires the journal to replay cleanly to the working schema. It also runs
+  the pending changes over the head-version fixtures and validates them against the working
+  schema, and checks generated schemas and golden migrations (`verify`).
+- **`release`** writes a release record (`changes:` is the changelog, then `operations`)
+  and a schema snapshot. The snapshot is the working file byte for byte, with only `$id`
+  bumped. It then truncates the journal. When the chain loads, each operation sequence
+  must replay to its snapshot, so editing a snapshot by hand is detected.
 
 ## Example project (`examples/tokamap`)
 
