@@ -402,6 +402,9 @@ def main(argv=None) -> int:
     p.add_argument("--kind")
     p.set_defaults(fn=cmd_verify)
 
+    p = sub.add_parser("lsp", help="run the language server on stdio (needs the 'lsp' extra: pygls)")
+    p.set_defaults(fn=lambda a: (__import__("schemamig.lsp", fromlist=["serve"]).serve(), 0)[1])
+
     p = sub.add_parser("record-schema", help="write (or --check) the generated record-format JSON Schema")
     p.add_argument("--check", action="store_true")
     p.set_defaults(fn=cmd_record_schema)

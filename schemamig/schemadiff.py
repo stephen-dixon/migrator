@@ -49,9 +49,9 @@ def equivalent(a: Any, b: Any) -> bool:
     return _key(normalize(a)) == _key(normalize(b))
 
 
-def residual(a: Any, b: Any, limit: int = 12) -> list[str]:
-    """Validation-relevant differences between schemas a (expected) and b (actual)."""
-    out: list[str] = []
+def residual_items(a: Any, b: Any, limit: int = 50) -> list[tuple[str, str]]:
+    """(pointer, message) for each validation-relevant difference: a expected, b actual."""
+    out: list[tuple[str, str]] = []
 
     def walk(x: Any, y: Any, ptr: str) -> None:
         if len(out) >= limit or _key(x) == _key(y):
@@ -59,18 +59,22 @@ def residual(a: Any, b: Any, limit: int = 12) -> list[str]:
         if isinstance(x, dict) and isinstance(y, dict):
             for k in x:
                 if k not in y:
-                    out.append(f"{P.child(ptr, k)}: in expected, missing from working schema")
+                    out.append((P.child(ptr, k), "in expected, missing from working schema"))
             for k in y:
                 if k not in x:
-                    out.append(f"{P.child(ptr, k)}: in working schema, not explained by any change")
+                    out.append((P.child(ptr, k), "in working schema, not explained by any change"))
             for k in x:
                 if k in y:
                     walk(x[k], y[k], P.child(ptr, k))
         else:
-            out.append(f"{ptr}: expected {_short(x)}, working schema has {_short(y)}")
+            out.append((ptr, f"expected {_short(x)}, working schema has {_short(y)}"))
 
     walk(normalize(a), normalize(b), "#")
     return out
+
+
+def residual(a: Any, b: Any, limit: int = 12) -> list[str]:
+    return [f"{p}: {m}" for p, m in residual_items(a, b, limit)]
 
 
 def _short(v: Any) -> str:

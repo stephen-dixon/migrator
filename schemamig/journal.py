@@ -351,13 +351,13 @@ def begin(project: Project, kind: Kind, cls: str, target: str, opts: dict, reaso
     return s
 
 
-def _plan(kind: Kind, s: dict) -> tuple[list[dict], dict]:
+def _plan(kind: Kind, s: dict, work: dict | None = None) -> tuple[list[dict], dict]:
     """Infer the ops for session s and verify a full replay matches the working schema."""
     eff = effective(read_records(kind))
     amends = s.get("amends")
     others = [e for e in eff if e["id"] != amends]
     pre, _ = replay(kind, others)
-    post = working(kind)
+    post = work if work is not None else working(kind)
     ops = infer(s["class"], s["target"], s.get("options") or {}, s.get("reason") or "", pre, post)
     for o in ops:
         O.parse_op(copy.deepcopy(o), kind.root)
@@ -371,18 +371,25 @@ def _plan(kind: Kind, s: dict) -> tuple[list[dict], dict]:
     return ops, entry
 
 
-def status(project: Project) -> dict:
+def plan(kind: Kind, cls: str, target: str, opts: dict | None = None, work: dict | None = None,
+         amends: str | None = None) -> list[dict]:
+    """Dry run: the ops a change of this class would record now (raises if it doesn't fit)."""
+    return _plan(kind, {"class": cls, "target": target, "options": opts or {}, "reason": "dry run",
+                        "amends": amends}, work)[0]
+
+
+def status(project: Project, work: dict | None = None) -> dict:
     s = load_session(project)
     if not s:
         return {"open": False}
     kind = project.kind(s["kind"])
     try:
-        ops, _ = _plan(kind, s)
+        ops, _ = _plan(kind, s, work)
         return {"open": True, **s, "ready": True, "ops": ops}
     except (O.DslError, SchemaError) as e:
         try:
             expected, _ = replay(kind, [x for x in effective(read_records(kind)) if x["id"] != s.get("amends")])
-            if not D.residual(expected, working(kind)):
+            if not D.residual(expected, work if work is not None else working(kind)):
                 return {"open": True, **s, "ready": False, "problem": "waiting for your edit"}
         except (O.DslError, SchemaError):
             pass
@@ -513,7 +520,7 @@ def pending_fixture_problems(kind: Kind, eff: list[dict], work: dict) -> list[st
     return out
 
 
-def check(project: Project, kind: Kind) -> tuple[list[str], list[str]]:
+def check(project: Project, kind: Kind, work: dict | None = None) -> tuple[list[str], list[str]]:
     errs: list[str] = []
     warns: list[str] = []
     try:
@@ -526,7 +533,7 @@ def check(project: Project, kind: Kind) -> tuple[list[str], list[str]]:
             e = f"{e}\n  (the journal contains concurrently written records from a merge; their order may be the cause)"
         return [str(e)], warns
     errs += _forks(recs, touched)
-    work = working(kind)
+    work = work if work is not None else working(kind)
     want_id = schema_id(kind.name, head(kind))
     if work.get("$id") != want_id:
         errs.append(f"working schema $id is {work.get('$id')!r}, expected {want_id!r} (head of the chain)")

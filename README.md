@@ -15,8 +15,8 @@ baseline schema (hand-written snapshot)
 ## Install / run
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -e '.[test]'
-.venv/bin/pytest -q                       # 67 tests: ops, e2e (example project), journal workflow
+python3 -m venv .venv && .venv/bin/pip install -e '.[test,lsp]'
+.venv/bin/pytest -q                       # 84 tests: ops, e2e, journal, record format, LSP engine, headless Neovim
 
 cd examples/tokamap
 S=../../.venv/bin/schemamig
@@ -75,6 +75,53 @@ schemamig release 2.1.0 --kind tokamap-config
   and a schema snapshot. The snapshot is the working file byte for byte, with only `$id`
   bumped. It then truncates the journal. When the chain loads, each operation sequence
   must replay to its snapshot, so editing a snapshot by hand is detected.
+
+### Auditing and the record format
+
+`schemamig change show <id>` answers "does this record reflect what I meant?". It works
+for unreleased changes and for changes already in a release. It shows:
+- what you declared versus what the tool inferred
+- one sentence per operation
+- the schema diff the change accounts for
+- the before/after effect on each fixture document
+
+Journal and release records carry `record_version` and are validated against
+`schemamig/record.schema.json`. That schema is generated from the operation classes, so
+the vocabulary and the format can't drift (`schemamig record-schema --check`).
+
+## Editor integration
+
+`schemamig lsp` is a language server on stdio, built on pygls. It works only on the files
+configured as working schemas:
+- **Diagnostics:** every validation-relevant edit the journal doesn't explain is a warning
+  where you made it. It uses the unsaved buffer, so you see it as you type. An open change
+  shows as an info line with what it would record.
+- **Code actions:**
+  - *record as <class>*: offered only for classes whose dry run verifiably explains the edit
+  - *record as unclassified*
+  - *begin <class>* on the property under the cursor
+  - commit / abort / status for the open change
+- **Commands:** `schemamig.begin|record|commit|abort|status|list|show`. Arguments the
+  client should prompt for are flagged `prompt_reason`.
+- **Notification:** `schemamig/status`, for statuslines.
+- **Saving:** recording is refused while the working schema has unsaved edits, so the
+  journal can never get ahead of the file. Both clients save first.
+
+**Neovim (0.10+)** (`editors/nvim`, tested headlessly against the real server in
+`tests/test_nvim_smoke.py`):
+
+```lua
+vim.opt.rtp:prepend("/path/to/migrator/editors/nvim")
+require("schemamig").setup({ cmd = { "/path/to/.venv/bin/schemamig", "lsp" } })
+vim.o.statusline = "%f %{v:lua.require'schemamig'.statusline()}"
+-- :SchemamigBegin <class> <target> [reason]  :SchemamigCommit  :SchemamigAbort
+-- :SchemamigList  :SchemamigShow <id>  :SchemamigStatus   + vim.lsp.buf.code_action()
+```
+
+**VS Code** (`editors/vscode`, **untested**: syntax-checked only). Run `npm install` in
+that folder, then load it as an unpacked extension. Set `schemamig.serverCommand` if
+`schemamig` isn't on your PATH. Code actions work as above, a status-bar item shows the
+open change, and there are palette commands for begin, commit, abort, list and show.
 
 ## Example project (`examples/tokamap`)
 
@@ -139,6 +186,9 @@ Generated schemas must match `build --check`. Unsupported schema keywords (`allO
 ```
 schemamig/   schema.py (subset + addressing)  walk.py (instance/schema co-walk)  ops.py (vocabulary)
              project.py (changesets, chain, generation)  migrate.py  impact.py  verify.py  cli.py
+             journal.py (change scopes, check, release)  schemadiff.py  records.py (+ record.schema.json)
+             audit.py (change show)  jsonpos.py  lsp.py
+editors/     nvim/ (Lua plugin + headless smoke test)  vscode/ (thin client, untested)
 examples/tokamap/  schemamig.yaml  baselines/  migrations/<kind>/*.yaml (+ adapters/)  generated/  fixtures/<kind>/<version>/
 tests/       test_ops.py (brief section 7 + vocabulary)  test_e2e.py (example project, CLI rails)
 ```

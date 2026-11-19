@@ -1,0 +1,30 @@
+{
+  "name": "schemamig",
+  "displayName": "schemamig (POC)",
+  "description": "Record intent-annotated JSON Schema changes while you edit (schemamig language server)",
+  "version": "0.0.1",
+  "publisher": "local",
+  "private": true,
+  "engines": { "vscode": "^1.85.0" },
+  "activationEvents": ["workspaceContains:**/schemamig.yaml"],
+  "main": "./extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "schemamig",
+      "properties": {
+        "schemamig.serverCommand": {
+          "type": "array", "items": { "type": "string" }, "default": ["schemamig", "lsp"],
+          "description": "Command that starts the schemamig language server"
+        }
+      }
+    },
+    "commands": [
+      { "command": "schemamig.ui.begin", "title": "schemamig: Begin change" },
+      { "command": "schemamig.ui.commit", "title": "schemamig: Commit change" },
+      { "command": "schemamig.ui.abort", "title": "schemamig: Abort change" },
+      { "command": "schemamig.ui.list", "title": "schemamig: List unreleased changes" },
+      { "command": "schemamig.ui.show", "title": "schemamig: Show change" }
+    ]
+  },
+  "dependencies": { "vscode-languageclient": "9.0.1" }
+}
