@@ -32,6 +32,7 @@ from . import ops as O
 from . import pointer as P
 from . import schemadiff as D
 from .project import Kind, Project, dump_json, load_json, vkey
+from .records import RECORD_VERSION
 from .schema import SchemaError, check_supported, deref, errors, relaxed, resolve_location, schema_id
 
 CLASSES = {
@@ -76,6 +77,10 @@ def read_records(kind: Kind) -> list[dict]:
             r = json.loads(line)
         except json.JSONDecodeError as e:
             raise JournalError(f"{kind.journal.name}:{n}: not valid JSON ({e}); a merge may have split a line")
+        from .records import validate
+        bad = validate("journal_record", r)
+        if bad:
+            raise JournalError(f"{kind.journal.name}:{n}: invalid record: " + "; ".join(bad))
         if r.get("id") in seen:
             raise JournalError(f"{kind.journal.name}:{n}: duplicate id {r.get('id')!r}")
         seen.add(r.get("id"))
@@ -395,7 +400,7 @@ def commit(project: Project, reason: str | None = None, compatibility: str | Non
     kind = project.kind(s["kind"])
     ops, _ = _plan(kind, s)
     recs = read_records(kind)
-    rec = {"id": new_id(), "after": recs[-1]["id"] if recs else None,
+    rec = {"id": new_id(), "after": recs[-1]["id"] if recs else None, "record_version": RECORD_VERSION,
            "type": "amend" if s.get("amends") else "change"}
     if s.get("amends"):
         rec["amends"] = s["amends"]
@@ -433,7 +438,8 @@ def drop(kind: Kind, cid: str) -> dict:
     recs = read_records(kind)
     if cid not in [e["id"] for e in effective(recs)]:
         raise JournalError(f"no change {cid!r} in the unreleased journal")
-    rec = {"id": new_id(), "after": recs[-1]["id"] if recs else None, "type": "drop", "drops": cid}
+    rec = {"id": new_id(), "after": recs[-1]["id"] if recs else None, "record_version": RECORD_VERSION,
+           "type": "drop", "drops": cid}
     append_record(kind, rec)
     return rec
 
@@ -566,18 +572,24 @@ def release(project: Project, kind: Kind, version: str, compatibility: str | Non
             if o.get("op") == "adapter":
                 o["module"] = os.path.relpath(kind.root / o["module"], rel_dir)
             ops.append(o)
-    body: dict = {"from": h, "to": version, "document_kind": kind.name}
+    body: dict = {"record_version": RECORD_VERSION, "from": h, "to": version, "document_kind": kind.name}
     if description:
         body["description"] = description
     body["compatibility"] = compat
     if managed:
         body["version_path"] = "/" + managed[-1]
     body["changes"] = [{"id": e["id"], "class": e["class"], "target": e["target"],
-                        "reason": e.get("reason", ""), "compatibility": e.get("compatibility") or "unknown"}
+                        "reason": e.get("reason", ""), "compatibility": e.get("compatibility") or "unknown",
+                        **({"options": e["options"]} if e.get("options") else {}),
+                        "operations": len(e["ops"])}
                        for e in eff]
     body["schema_snapshot"] = os.path.relpath(snap, rel_dir)
     body["operations"] = ops
 
+    from .records import validate
+    bad = validate("release_record", body)
+    if bad:
+        raise JournalError("internal: release record fails its schema: " + "; ".join(bad))
     text = kind.schema_file.read_text(encoding="utf-8")
     new_text, n = _ID.subn(lambda m: m.group(1) + schema_id(kind.name, version) + m.group(2), text, count=1)
     if n != 1:

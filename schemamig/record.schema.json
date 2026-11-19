@@ -1,0 +1,761 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:schemamig:records:1",
+  "description": "schemamig record formats (generated from schemamig/ops.py; do not edit)",
+  "$defs": {
+    "journal_record": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^c[0-9a-f]{8}$"
+            },
+            "after": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "record_version": {
+              "const": 1
+            },
+            "type": {
+              "const": "change"
+            },
+            "class": {
+              "enum": [
+                "add-field",
+                "add-variant",
+                "make-optional",
+                "make-required",
+                "nest-fields",
+                "remove-field",
+                "rename-field",
+                "rename-value",
+                "set-field-schema",
+                "unclassified",
+                "wrap"
+              ]
+            },
+            "target": {
+              "type": "string"
+            },
+            "options": {
+              "type": "object",
+              "description": "parameters the developer declared explicitly"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "compatibility": {
+              "enum": [
+                "backward-compatible",
+                "breaking",
+                "unknown"
+              ]
+            },
+            "ops": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/operation"
+              },
+              "minItems": 1,
+              "description": "full operations, declared + inferred parameters"
+            }
+          },
+          "required": [
+            "id",
+            "after",
+            "record_version",
+            "type",
+            "class",
+            "target",
+            "options",
+            "reason",
+            "compatibility",
+            "ops"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^c[0-9a-f]{8}$"
+            },
+            "after": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "record_version": {
+              "const": 1
+            },
+            "type": {
+              "const": "amend"
+            },
+            "amends": {
+              "type": "string"
+            },
+            "class": {
+              "enum": [
+                "add-field",
+                "add-variant",
+                "make-optional",
+                "make-required",
+                "nest-fields",
+                "remove-field",
+                "rename-field",
+                "rename-value",
+                "set-field-schema",
+                "unclassified",
+                "wrap"
+              ]
+            },
+            "target": {
+              "type": "string"
+            },
+            "options": {
+              "type": "object",
+              "description": "parameters the developer declared explicitly"
+            },
+            "reason": {
+              "type": "string"
+            },
+            "compatibility": {
+              "enum": [
+                "backward-compatible",
+                "breaking",
+                "unknown"
+              ]
+            },
+            "ops": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/operation"
+              },
+              "minItems": 1,
+              "description": "full operations, declared + inferred parameters"
+            }
+          },
+          "required": [
+            "id",
+            "after",
+            "record_version",
+            "type",
+            "amends",
+            "class",
+            "target",
+            "options",
+            "reason",
+            "compatibility",
+            "ops"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "pattern": "^c[0-9a-f]{8}$"
+            },
+            "after": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "record_version": {
+              "const": 1
+            },
+            "type": {
+              "const": "drop"
+            },
+            "drops": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "after",
+            "record_version",
+            "type",
+            "drops"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "release_record": {
+      "type": "object",
+      "properties": {
+        "record_version": {
+          "const": 1
+        },
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "document_kind": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "compatibility": {
+          "enum": [
+            "backward-compatible",
+            "breaking",
+            "unknown"
+          ]
+        },
+        "version_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "changes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "class": {
+                "enum": [
+                  "add-field",
+                  "add-variant",
+                  "make-optional",
+                  "make-required",
+                  "nest-fields",
+                  "remove-field",
+                  "rename-field",
+                  "rename-value",
+                  "set-field-schema",
+                  "unclassified",
+                  "wrap"
+                ]
+              },
+              "target": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              },
+              "compatibility": {
+                "enum": [
+                  "backward-compatible",
+                  "breaking",
+                  "unknown"
+                ]
+              },
+              "options": {
+                "type": "object"
+              },
+              "operations": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "how many of `operations` this change contributed"
+              }
+            },
+            "required": [
+              "id",
+              "class",
+              "target",
+              "reason",
+              "compatibility"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "schema_snapshot": {
+          "type": "string"
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/operation"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "record_version",
+        "from",
+        "to",
+        "document_kind",
+        "compatibility",
+        "changes",
+        "schema_snapshot",
+        "operations"
+      ],
+      "additionalProperties": false
+    },
+    "operation": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/op_adapter"
+        },
+        {
+          "$ref": "#/$defs/op_add_def"
+        },
+        {
+          "$ref": "#/$defs/op_add_field"
+        },
+        {
+          "$ref": "#/$defs/op_add_variant"
+        },
+        {
+          "$ref": "#/$defs/op_make_optional"
+        },
+        {
+          "$ref": "#/$defs/op_make_required"
+        },
+        {
+          "$ref": "#/$defs/op_nest_fields"
+        },
+        {
+          "$ref": "#/$defs/op_patch_schema"
+        },
+        {
+          "$ref": "#/$defs/op_remove_field"
+        },
+        {
+          "$ref": "#/$defs/op_rename_field"
+        },
+        {
+          "$ref": "#/$defs/op_rename_value"
+        },
+        {
+          "$ref": "#/$defs/op_set_field_schema"
+        },
+        {
+          "$ref": "#/$defs/op_wrap"
+        }
+      ]
+    },
+    "op_adapter": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "adapter"
+        },
+        "function": {
+          "type": "string"
+        },
+        "module": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "schema_patch": {
+          "$ref": "#/$defs/json_patch"
+        }
+      },
+      "required": [
+        "op",
+        "function",
+        "module",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "op_add_def": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "add-def"
+        },
+        "name": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "schema": {
+          "type": [
+            "object",
+            "boolean"
+          ]
+        }
+      },
+      "required": [
+        "op",
+        "name",
+        "schema"
+      ],
+      "additionalProperties": false
+    },
+    "op_add_field": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "add-field"
+        },
+        "at": {
+          "type": "string"
+        },
+        "default": {},
+        "description": {
+          "type": "string"
+        },
+        "managed": {
+          "const": "version"
+        },
+        "name": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "position": {
+          "enum": [
+            "start",
+            "end"
+          ]
+        },
+        "required": {
+          "type": "boolean"
+        },
+        "schema": {
+          "type": [
+            "object",
+            "boolean"
+          ]
+        },
+        "type": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "at",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "op_add_variant": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "add-variant"
+        },
+        "at": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "ref": {
+          "type": "string"
+        },
+        "schema": {
+          "type": [
+            "object",
+            "boolean"
+          ]
+        }
+      },
+      "required": [
+        "op",
+        "at"
+      ],
+      "additionalProperties": false
+    },
+    "op_make_optional": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "make-optional"
+        },
+        "at": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "at",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "op_make_required": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "make-required"
+        },
+        "at": {
+          "type": "string"
+        },
+        "default": {},
+        "name": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "at",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "op_nest_fields": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "nest-fields"
+        },
+        "at": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1
+        },
+        "into": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "schema": {
+          "type": [
+            "object",
+            "boolean"
+          ]
+        }
+      },
+      "required": [
+        "op",
+        "at",
+        "fields",
+        "into"
+      ],
+      "additionalProperties": false
+    },
+    "op_patch_schema": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "patch-schema"
+        },
+        "instance_effect": {
+          "const": "none"
+        },
+        "note": {
+          "type": "string"
+        },
+        "patch": {
+          "$ref": "#/$defs/json_patch"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "patch",
+        "reason"
+      ],
+      "additionalProperties": false
+    },
+    "op_remove_field": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "remove-field"
+        },
+        "at": {
+          "type": "string"
+        },
+        "lossy": {
+          "type": "boolean"
+        },
+        "name": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "at",
+        "name"
+      ],
+      "additionalProperties": false
+    },
+    "op_rename_field": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "rename-field"
+        },
+        "at": {
+          "type": "string"
+        },
+        "from": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "at",
+        "from",
+        "to"
+      ],
+      "additionalProperties": false
+    },
+    "op_rename_value": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "rename-value"
+        },
+        "at": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "values": {
+          "type": "object",
+          "minProperties": 1
+        }
+      },
+      "required": [
+        "op",
+        "at",
+        "values"
+      ],
+      "additionalProperties": false
+    },
+    "op_set_field_schema": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "set-field-schema"
+        },
+        "at": {
+          "type": "string"
+        },
+        "convert": {
+          "enum": [
+            "to-array",
+            "to-number",
+            "to-string"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "schema": {
+          "type": [
+            "object",
+            "boolean"
+          ]
+        }
+      },
+      "required": [
+        "op",
+        "at",
+        "name",
+        "schema"
+      ],
+      "additionalProperties": false
+    },
+    "op_wrap": {
+      "type": "object",
+      "properties": {
+        "op": {
+          "const": "wrap"
+        },
+        "at": {
+          "type": "string"
+        },
+        "into": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "at",
+        "into"
+      ],
+      "additionalProperties": false
+    },
+    "json_patch": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "op",
+          "path"
+        ],
+        "properties": {
+          "op": {
+            "enum": [
+              "add",
+              "remove",
+              "replace",
+              "move",
+              "copy",
+              "test"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string"
+          },
+          "value": {}
+        }
+      }
+    }
+  }
+}

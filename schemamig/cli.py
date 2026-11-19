@@ -130,6 +130,18 @@ def cmd_verify(args) -> int:
     return 1 if bad else 0
 
 
+def cmd_record_schema(args) -> int:
+    from .records import SCHEMA_PATH, build_schema
+    text = dump_json(build_schema())
+    current = SCHEMA_PATH.read_text() if SCHEMA_PATH.exists() else None
+    if args.check:
+        print("record schema up to date" if current == text else "record schema stale; run `schemamig record-schema`")
+        return 0 if current == text else 2
+    SCHEMA_PATH.write_text(text)
+    print(f"wrote {SCHEMA_PATH}")
+    return 0
+
+
 def cmd_lint(args) -> int:
     schema = load_json(Path(args.schema))
     for w in check_supported(schema):
@@ -249,6 +261,11 @@ def cmd_change(args) -> int:
         rec = J.drop(proj.kind(args.kind), args.id)
         _out(args, rec, f"dropped {args.id} (revert its edit in the schema, or `check` will fail)")
         return 0
+    if a == "show":
+        from . import audit
+        r = audit.show(proj, proj.kind(args.kind), args.id)
+        _out(args, r, audit.render(r))
+        return 0
     if a == "list":
         eff = J.effective(J.read_records(proj.kind(args.kind)))
         lines = [f"{e['id']}  {e['class']:<16} {e['target']:<28} [{e.get('compatibility') or 'unknown'}] "
@@ -316,7 +333,7 @@ def add_journal_commands(sub) -> None:
     q.add_argument("--json", action="store_true")
     for name in ("status", "abort", "classes"):
         ch.add_parser(name).add_argument("--json", action="store_true")
-    for name in ("reopen", "drop"):
+    for name in ("reopen", "drop", "show"):
         q = ch.add_parser(name)
         q.add_argument("id")
         q.add_argument("--kind")
@@ -384,6 +401,10 @@ def main(argv=None) -> int:
     p = sub.add_parser("verify", help="validate fixtures, check compat claims, compare golden migrations")
     p.add_argument("--kind")
     p.set_defaults(fn=cmd_verify)
+
+    p = sub.add_parser("record-schema", help="write (or --check) the generated record-format JSON Schema")
+    p.add_argument("--check", action="store_true")
+    p.set_defaults(fn=cmd_record_schema)
 
     p = sub.add_parser("lint-schema", help="check a schema uses only the supported subset")
     p.add_argument("schema")

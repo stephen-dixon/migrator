@@ -109,7 +109,7 @@ class Changeset:
 
 CS_KEYS = {"from", "to", "kind", "document_kind", "description", "compatibility", "version_path",
            "operations", "schema", "reason", "instance_migration", "adapter", "preserve_paths",
-           "invalidate_paths", "schema_snapshot", "changes"}
+           "invalidate_paths", "schema_snapshot", "changes", "record_version"}
 
 
 def load_changeset(path: Path) -> Changeset:
@@ -119,6 +119,11 @@ def load_changeset(path: Path) -> Changeset:
     unknown = set(raw) - CS_KEYS
     if unknown:
         raise O.DslError(f"{path}: unknown key(s) {sorted(unknown)}")
+    if "record_version" in raw:  # tool-written release record: validate against the record schema
+        from .records import validate
+        bad = validate("release_record", raw)
+        if bad:
+            raise O.DslError(f"{path}: invalid release record: " + "; ".join(bad))
     for k in ("from", "to", "document_kind"):
         if k not in raw:
             raise O.DslError(f"{path}: missing '{k}'")

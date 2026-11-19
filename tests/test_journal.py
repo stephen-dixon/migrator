@@ -383,3 +383,57 @@ def test_cli_session_flow(proj, capsys):
     assert main(cfg + ["check", "--kind", KIND]) == 0
     assert main(cfg + ["release", "2.0.0", "--kind", KIND, "--compat", "breaking"]) == 0
     assert main(cfg + ["check", "--kind", KIND]) == 0
+
+
+# --- record format & audit view -----------------------------------------------------------
+
+def test_committed_record_schema_is_generated_from_the_vocabulary():
+    assert main(["record-schema", "--check"]) == 0
+
+
+def test_invalid_journal_record_is_rejected(proj):
+    rec = change(proj, "rename-value", "def:expression", e_expr, name="map_type", values={"EXPR": "EXPRESSION"})
+    journal = proj / f"changes/{KIND}.jsonl"
+    bad = {**rec, "id": "c12345678", "after": rec["id"], "ops": [{"op": "rename-field", "at": "def:x"}]}
+    journal.write_text(journal.read_text() + json.dumps(bad) + "\n")
+    with pytest.raises(J.JournalError, match=r"jsonl:2: invalid record"):
+        J.read_records(P(proj).kind(KIND))
+
+
+def test_tampered_release_record_is_rejected(proj):
+    change(proj, "rename-value", "def:expression", e_expr, name="map_type")
+    p = P(proj)
+    rec = J.release(p, p.kind(KIND), "1.2.0")
+    data = yaml.safe_load(rec.read_text())
+    data["operations"][0]["valuse"] = {}
+    rec.write_text(yaml.safe_dump(data, sort_keys=False))
+    with pytest.raises(Exception, match="invalid release record"):
+        P(proj).kind(KIND).chain()
+
+
+def test_show_unreleased_declared_vs_inferred_and_fixture_effect(proj):
+    from schemamig import audit
+    k = P(proj).kind(KIND)
+    out, _ = migrate(k, load_json(proj / "fixtures/mappings/1.0.0/magnetics-40.json"), to="1.1.0")
+    (proj / "fixtures/mappings/1.1.0").mkdir()
+    (proj / "fixtures/mappings/1.1.0/magnetics-40.json").write_text(json.dumps(out, indent=2) + "\n")
+    rec = change(proj, "rename-field", "def:dimension", e_rename_probe, to="probe")
+    r = audit.show(P(proj), P(proj).kind(KIND), rec["id"])
+    assert r["declared"] == {"to": "probe"} and r["inferred"] == {"rename-field.from": "dim_probe"}
+    assert any('-        "dim_probe"' in line for line in r["schema_diff"])
+    fx = r["fixtures"][0]
+    assert fx["fixture"] == "magnetics-40.json" and len(fx["changes"]) == 2  # its 2 DIMENSION mappings
+    assert "probe" in audit.render(r)
+
+
+def test_show_released_change(proj):
+    from schemamig import audit
+    change(proj, "rename-field", "def:dimension", e_rename_probe)
+    second = change(proj, "rename-value", "def:expression", e_expr, name="map_type")
+    p = P(proj)
+    J.release(p, p.kind(KIND), "2.0.0")
+    r = audit.show(P(proj), P(proj).kind(KIND), second["id"])
+    assert r["status"] == "released in 2.0.0"
+    assert r["summary"] == ["rename values at def:expression field 'map_type': EXPR->EXPRESSION"]
+    # the earlier change in the same release is applied first, so the diff is only this one
+    assert not any("dim_probe" in line for line in r["schema_diff"])
