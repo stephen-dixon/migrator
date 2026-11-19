@@ -1,0 +1,277 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:tokamap-mappings:2.1.0",
+  "description": "libtokamap mapping document",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "const": "tokamap.mappings"
+    },
+    "mappings": {
+      "type": "object",
+      "patternProperties": {
+        "^.*$": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "$ref": "#/$defs/map_type"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "format_version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    }
+  },
+  "required": [
+    "mappings",
+    "kind",
+    "format_version"
+  ],
+  "additionalProperties": false,
+  "$defs": {
+    "map_type": {
+      "type": "object",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/dimension"
+        },
+        {
+          "$ref": "#/$defs/value"
+        },
+        {
+          "$ref": "#/$defs/data_source"
+        },
+        {
+          "$ref": "#/$defs/expression"
+        },
+        {
+          "$ref": "#/$defs/custom"
+        },
+        {
+          "$ref": "#/$defs/error"
+        }
+      ]
+    },
+    "dimension": {
+      "properties": {
+        "map_type": {
+          "const": "DIMENSION"
+        },
+        "probe": {
+          "type": "string"
+        },
+        "comment": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "map_type",
+        "probe"
+      ],
+      "additionalProperties": false
+    },
+    "value": {
+      "properties": {
+        "map_type": {
+          "const": "VALUE"
+        },
+        "value": {
+          "type": [
+            "number",
+            "string",
+            "array"
+          ]
+        },
+        "comment": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "map_type",
+        "value"
+      ],
+      "additionalProperties": false
+    },
+    "data_source": {
+      "properties": {
+        "map_type": {
+          "const": "DATA_SOURCE"
+        },
+        "args": {
+          "type": "object",
+          "patternProperties": {
+            "^.*$": {
+              "type": [
+                "string",
+                "boolean",
+                "number"
+              ]
+            }
+          }
+        },
+        "data_source": {
+          "type": "string"
+        },
+        "transform": {
+          "description": "Linear transform applied to the data (value * scale + offset)",
+          "type": "object",
+          "properties": {
+            "offset": {
+              "type": [
+                "string",
+                "number"
+              ]
+            },
+            "scale": {
+              "type": [
+                "string",
+                "number"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "slice": {
+          "oneOf": [
+            {
+              "type": "string",
+              "description": "templated slice, rendered at runtime",
+              "pattern": "\\{\\{"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "integer"
+                },
+                "stop": {
+                  "type": "integer"
+                },
+                "step": {
+                  "type": "integer"
+                }
+              },
+              "additionalProperties": false
+            }
+          ]
+        },
+        "comment": {
+          "type": "string"
+        },
+        "units": {
+          "description": "Physical units of the returned data (informational)",
+          "type": "string"
+        }
+      },
+      "required": [
+        "map_type",
+        "args",
+        "data_source"
+      ],
+      "additionalProperties": false
+    },
+    "expression": {
+      "properties": {
+        "map_type": {
+          "const": "EXPRESSION"
+        },
+        "parameters": {
+          "type": "object",
+          "patternProperties": {
+            "^.*$": {
+              "type": "string"
+            }
+          }
+        },
+        "expr": {
+          "type": "string"
+        },
+        "comment": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "map_type",
+        "parameters",
+        "expr"
+      ],
+      "additionalProperties": false
+    },
+    "custom": {
+      "properties": {
+        "map_type": {
+          "const": "CUSTOM"
+        },
+        "library": {
+          "type": "string"
+        },
+        "function": {
+          "type": "string"
+        },
+        "inputs": {
+          "type": "object",
+          "patternProperties": {
+            "^.*$": {
+              "type": "string"
+            }
+          }
+        },
+        "parameters": {
+          "type": "object"
+        },
+        "comment": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "map_type",
+        "library",
+        "function",
+        "inputs",
+        "parameters"
+      ],
+      "additionalProperties": false
+    },
+    "error": {
+      "properties": {
+        "map_type": {
+          "const": "ERROR"
+        },
+        "reference": {
+          "type": "string"
+        },
+        "error_type": {
+          "enum": [
+            "ABSOLUTE",
+            "RELATIVE",
+            "MAX_ABS_REL"
+          ]
+        },
+        "absolute": {
+          "type": "number"
+        },
+        "relative": {
+          "type": "number"
+        },
+        "comment": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "map_type",
+        "reference",
+        "error_type"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

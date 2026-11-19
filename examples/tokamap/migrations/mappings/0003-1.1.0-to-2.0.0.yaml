@@ -1,0 +1,37 @@
+from: 1.1.0
+to: 2.0.0
+document_kind: tokamap-mappings
+description: >
+  Breaking format release: envelope the bare mapping object, consistent naming.
+compatibility: breaking
+version_path: /format_version       # the version moves out of the mapping-key namespace
+operations:
+  - op: rename-field
+    at: def:dimension
+    from: dim_probe
+    to: probe
+  - op: rename-value                # discriminator rename: EXPR -> EXPRESSION
+    at: def:expression
+    name: map_type
+    values: { EXPR: EXPRESSION }
+  - op: nest-fields
+    at: def:data_source
+    fields: [offset, scale]
+    into: transform
+    description: Linear transform applied to the data (value * scale + offset)
+  - op: wrap
+    at: "$"
+    into: mappings
+  - op: add-field
+    at: "$"
+    name: kind
+    schema: { const: tokamap.mappings }
+    required: true
+    default: tokamap.mappings
+    position: start
+  - op: add-field
+    at: "$"
+    name: format_version
+    schema: { type: string, pattern: "^\\d+\\.\\d+\\.\\d+$" }
+    required: true
+    managed: version

@@ -1,0 +1,26 @@
+from: 1.0.0
+to: 1.1.0
+document_kind: tokamap-config
+description: >
+  Start versioning mappings.cfg.json; stop overloading metadata.version (it is the
+  mapping-set CONTENT version, not the format version); lowercase selector values.
+compatibility: breaking
+version_path: /format_version
+operations:
+  - op: add-field
+    at: "$"
+    name: format_version
+    type: string
+    required: true
+    managed: version
+  - op: rename-field
+    at: $.metadata                  # instance-shaped path, resolved through $ref to #/$defs/metadata
+    from: version
+    to: content_version
+  - op: add-field
+    at: $.metadata
+    name: description
+    type: string
+  - op: rename-value
+    at: $.partitions[].selector
+    values: { MAX_BELOW: max_below, MIN_ABOVE: min_above, EXACT: exact, CLOSEST: closest }

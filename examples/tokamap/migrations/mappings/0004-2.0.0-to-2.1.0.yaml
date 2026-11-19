@@ -1,0 +1,26 @@
+from: 2.0.0
+to: 2.1.0
+document_kind: tokamap-mappings
+description: >
+  Structured slices where statically known. Parsing "[a:b:c]" strings is not something the
+  declarative vocabulary can express, so this edge uses a reviewed, versioned adapter.
+compatibility: breaking
+operations:
+  - op: adapter
+    module: adapters/structured_slice.py
+    function: migrate
+    reason: parse literal slice strings into {start, stop, step}; keep templated slices as strings
+    schema_patch:
+      - op: replace
+        path: /$defs/data_source/properties/slice
+        value:
+          oneOf:
+            - type: string
+              description: templated slice, rendered at runtime
+              pattern: "\\{\\{"
+            - type: object
+              properties:
+                start: { type: integer }
+                stop: { type: integer }
+                step: { type: integer }
+              additionalProperties: false

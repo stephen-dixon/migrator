@@ -1,0 +1,16 @@
+# Each document kind = one explicit baseline snapshot + a linear chain of changesets.
+# Generated schemas are build outputs, committed so reviewers see them in diffs
+# (CI runs `schemamig build --check`).
+kinds:
+  tokamap-mappings:
+    baseline: baselines/tokamap-mappings-1.0.0.json
+    migrations: migrations/mappings
+    generated: generated
+    fixtures: fixtures/mappings
+    version_path: /version        # bare mapping files carry "version": "x.y.z" at the top
+  tokamap-config:
+    baseline: baselines/tokamap-config-1.0.0.json
+    migrations: migrations/config
+    generated: generated
+    fixtures: fixtures/config
+    version_path: null            # legacy: mappings.cfg.json is unversioned (metadata.version is CONTENT version)

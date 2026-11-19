@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:tokamap-config:2.0.0",
+  "description": "libtokamap mapping-set configuration (mappings.cfg.json)",
+  "type": "object",
+  "required": [
+    "format_version",
+    "metadata",
+    "partition_rules",
+    "groups"
+  ],
+  "properties": {
+    "format_version": {
+      "type": "string"
+    },
+    "metadata": {
+      "$ref": "#/$defs/metadata"
+    },
+    "partition_rules": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/rule"
+      }
+    },
+    "groups": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "experiment": {
+          "type": "string"
+        },
+        "content_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "experiment"
+      ],
+      "additionalProperties": false
+    },
+    "rule": {
+      "type": "object",
+      "properties": {
+        "selector": {
+          "enum": [
+            "max_below",
+            "min_above",
+            "exact",
+            "closest"
+          ]
+        },
+        "fallback": {
+          "enum": [
+            "error",
+            "nearest",
+            "none"
+          ]
+        },
+        "priority": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "selector"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

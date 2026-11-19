@@ -1,0 +1,26 @@
+from: 1.0.1
+to: 1.1.0
+document_kind: tokamap-mappings
+description: Additive release - units on data sources, and the new ERROR map type.
+compatibility: backward-compatible
+operations:
+  - op: add-field
+    at: def:data_source
+    name: units
+    type: string
+    description: Physical units of the returned data (informational)
+  - op: add-def
+    name: error
+    schema:
+      properties:
+        map_type: { const: ERROR }
+        reference: { type: string }
+        error_type: { enum: [ABSOLUTE, RELATIVE, MAX_ABS_REL] }
+        absolute: { type: number }
+        relative: { type: number }
+        comment: { type: string }
+      required: [map_type, reference, error_type]
+      additionalProperties: false
+  - op: add-variant
+    at: def:map_type
+    ref: def:error

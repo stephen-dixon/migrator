@@ -1,0 +1,22 @@
+[project]
+name = "schemamig"
+version = "0.0.1"
+description = "POC: operation-sourced JSON Schema evolution with derived instance migrations"
+requires-python = ">=3.11"
+dependencies = ["jsonschema>=4.18", "pyyaml>=6"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.scripts]
+schemamig = "schemamig.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["schemamig"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

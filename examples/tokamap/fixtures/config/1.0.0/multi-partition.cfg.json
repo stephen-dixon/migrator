@@ -1,0 +1,12 @@
+{
+  "metadata": {
+    "experiment": "example",
+    "author": "Jane Roe",
+    "version": "2.3.0"
+  },
+  "partitions": [
+    { "attribute": "shot", "selector": "MAX_BELOW" },
+    { "attribute": "run", "selector": "CLOSEST" }
+  ],
+  "groups": ["magnetics", "equilibrium"]
+}

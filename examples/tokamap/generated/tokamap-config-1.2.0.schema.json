@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:tokamap-config:1.2.0",
+  "description": "JSON Schema for v1.0 of default top-level globals",
+  "type": "object",
+  "required": [
+    "metadata",
+    "partitions",
+    "groups",
+    "format_version"
+  ],
+  "properties": {
+    "metadata": {
+      "$ref": "#/$defs/metadata"
+    },
+    "partitions": {
+      "$ref": "#/$defs/partitions"
+    },
+    "groups": {
+      "$ref": "#/$defs/groups"
+    },
+    "format_version": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "experiment": {
+          "type": "string"
+        },
+        "content_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "experiment"
+      ]
+    },
+    "groups": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "partitions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "attribute": {
+            "type": "string"
+          },
+          "selector": {
+            "enum": [
+              "max_below",
+              "min_above",
+              "exact",
+              "closest"
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "required": [
+          "attribute",
+          "selector"
+        ]
+      }
+    }
+  }
+}

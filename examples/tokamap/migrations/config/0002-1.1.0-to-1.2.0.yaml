@@ -1,0 +1,14 @@
+from: 1.1.0
+to: 1.2.0
+document_kind: tokamap-config
+description: Authorship comes from git history; experiment becomes mandatory.
+compatibility: breaking
+operations:
+  - op: remove-field
+    at: def:metadata
+    name: author
+    lossy: true                     # reviewed: values are reported, then dropped
+  - op: make-required
+    at: def:metadata
+    name: experiment
+    default: unknown

@@ -1,0 +1,14 @@
+from: 1.0.0
+to: 1.0.1
+document_kind: tokamap-mappings
+description: >
+  Repair the inherited baseline: "additionalProperties": false was placed inside
+  patternProperties, where it is a regex entry, not a keyword. There is no declarative op
+  for "fix my schema bug", so this uses the patch-schema escape hatch.
+compatibility: backward-compatible   # reviewed: the bogus entry only rejected keys containing "additionalProperties"
+operations:
+  - op: patch-schema
+    reason: remove mis-nested additionalProperties regex entry; fix stale description
+    patch:
+      - { op: remove, path: "/patternProperties/additionalProperties" }
+      - { op: replace, path: "/description", value: "libtokamap mapping document" }

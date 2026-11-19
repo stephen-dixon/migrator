@@ -1,0 +1,67 @@
+{
+  "format_version": "2.1.0",
+  "kind": "tokamap.mappings",
+  "mappings": {
+    "ip": {
+      "map_type": "DATA_SOURCE",
+      "data_source": "UDA",
+      "args": {
+        "signal": "ip",
+        "shot": "{{ shot }}"
+      },
+      "transform": {
+        "offset": "0.5",
+        "scale": 1e-06
+      },
+      "comment": "plasma current in MA"
+    },
+    "time": {
+      "map_type": "DATA_SOURCE",
+      "data_source": "UDA",
+      "args": {
+        "signal": "time"
+      },
+      "slice": {
+        "start": 0,
+        "stop": 100
+      }
+    },
+    "psi_axis": {
+      "map_type": "DATA_SOURCE",
+      "data_source": "UDA",
+      "args": {
+        "signal": "psi"
+      },
+      "slice": "[{{ indices.axis }}]"
+    },
+    "ip_abs": {
+      "map_type": "EXPRESSION",
+      "expr": "abs(x)",
+      "parameters": {
+        "x": "ip"
+      },
+      "comment": "magnitude"
+    },
+    "machine": "EXAMPLE",
+    "major_radius": 0.85,
+    "ids_version": {
+      "map_type": "VALUE",
+      "value": "3.39.0"
+    },
+    "boundary": {
+      "map_type": "CUSTOM",
+      "library": "libgeom",
+      "function": "lcfs",
+      "inputs": {
+        "psi": "psi_axis"
+      },
+      "parameters": {
+        "n_points": 64
+      }
+    },
+    "n_points": {
+      "map_type": "DIMENSION",
+      "probe": "boundary"
+    }
+  }
+}

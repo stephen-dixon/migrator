@@ -1,0 +1,21 @@
+{
+  "format_version": "1.2.0",
+  "metadata": {
+    "experiment": "example",
+    "content_version": "2.3.0"
+  },
+  "partitions": [
+    {
+      "attribute": "shot",
+      "selector": "max_below"
+    },
+    {
+      "attribute": "run",
+      "selector": "closest"
+    }
+  ],
+  "groups": [
+    "magnetics",
+    "equilibrium"
+  ]
+}
