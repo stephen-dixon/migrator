@@ -42,7 +42,7 @@ schemamig change begin add-field def:rule --kind tokamap-config --reason "..." -
 #   ...edit schemas/tokamap-config.schema.json in your editor...
 schemamig change status [--json]        # "waiting for your edit" / "ready" + inferred ops (for statuslines)
 schemamig change commit                 # infer ops from the scoped diff, verify by replay, append to the journal
-schemamig change record rename-value def:rule --name fallback --kind tokamap-config   # declare after editing
+schemamig change record rename-value def:rule --name fallback --map error=raise --kind tokamap-config   # declare after editing
 schemamig change list | reopen <id> | drop <id> | abort | classes
 schemamig check                         # CI gate
 schemamig release 2.1.0 --kind tokamap-config
@@ -55,6 +55,12 @@ schemamig release 2.1.0 --kind tokamap-config
 - **Scoped inference.** The declared class (`change classes`) narrows the diff, and the
   tool fills in the operation's parameters. A full replay must then match the working schema,
   so an edit the scope doesn't explain blocks the commit and is listed.
+- **Explicit beats inferred.** Explicit parameters (`--from/--to`, `--map OLD=NEW`,
+  `--fields/--into`, `--name`) always win, and inference only fills in what you leave out.
+  Replay checks the result either way. Ambiguous cases, such as several enum values
+  changing at once, require the explicit form. Note that some intent can't be seen in a
+  diff at all: a swap of two enum values leaves the same set, so only the record says what
+  happened.
 - **Annotations are free.** `description`, `title`, `$comment`, `examples`, key order and
   the order of `required`/`enum`/`oneOf` can't affect validation. They never need a record.
 - **Journal** (`changes/<kind>.jsonl`): one JSON record per line. Each record has an `id`

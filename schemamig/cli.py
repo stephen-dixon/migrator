@@ -166,9 +166,28 @@ def _opts(args) -> dict:
             o["default"] = json.loads(args.default)
         except json.JSONDecodeError:
             o["default"] = args.default
-    for k in ("name", "convert", "adapter"):
+    for k in ("name", "convert", "adapter", "into"):
         if getattr(args, k, None):
             o[k] = getattr(args, k)
+    if getattr(args, "from_", None):
+        o["from"] = args.from_
+    if getattr(args, "to", None):
+        o["to"] = args.to
+    if getattr(args, "fields", None):
+        o["fields"] = [f.strip() for f in args.fields.split(",") if f.strip()]
+    if getattr(args, "map", None):
+        def val(x):
+            try:
+                return json.loads(x)
+            except json.JSONDecodeError:
+                return x
+        vals = {}
+        for m in args.map:
+            if "=" not in m:
+                raise O.DslError(f"--map expects OLD=NEW, got {m!r}")
+            a, b = m.split("=", 1)
+            vals[val(a)] = val(b)
+        o["values"] = vals
     if getattr(args, "lossy", False):
         o["lossy"] = True
     if getattr(args, "managed_version", False):
@@ -285,6 +304,11 @@ def add_journal_commands(sub) -> None:
         q.add_argument("--managed-version", action="store_true")
         q.add_argument("--convert", choices=sorted(O.CONVERTERS))
         q.add_argument("--adapter", help="module.py:function (unclassified only), path relative to project")
+        q.add_argument("--from", dest="from_", help="rename-field: old property name")
+        q.add_argument("--to", help="rename-field: new property name")
+        q.add_argument("--map", action="append", metavar="OLD=NEW", help="rename-value: one per renamed value")
+        q.add_argument("--fields", help="nest-fields: comma-separated properties to move")
+        q.add_argument("--into", help="nest-fields / wrap: name of the new property")
         q.add_argument("--json", action="store_true")
     q = ch.add_parser("commit")
     q.add_argument("--reason")

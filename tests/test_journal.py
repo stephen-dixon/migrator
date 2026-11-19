@@ -307,21 +307,61 @@ def test_add_variant_with_new_def(proj):
     assert [o["op"] for o in rec["ops"]] == ["add-def", "add-variant"]
 
 
-def test_rename_value_enum_pairs_by_position(tmp_path):
+@pytest.fixture
+def config_proj(tmp_path):
     root = tmp_path / "tokamap"
     shutil.copytree(EXAMPLE, root)
-    shutil.copy(root / "baselines/tokamap-config-2.0.0.json", root / "schemas.json")
-    cfg = yaml.safe_load((root / "schemamig.yaml").read_text())
-    cfg["kinds"]["tokamap-config"].update(schema="schemas.json", journal="changes/config.jsonl")
-    (root / "schemamig.yaml").write_text(yaml.safe_dump(cfg))
-    p = Project(root / "schemamig.yaml")
+    return root
+
+
+def _set_enum(root, values):
+    path = root / "schemas/tokamap-config.schema.json"
+    s = json.loads(path.read_text())
+    s["$defs"]["rule"]["properties"]["selector"]["enum"] = values
+    path.write_text(json.dumps(s, indent=2))
+
+
+def test_rename_value_single_change_is_inferred_even_if_reordered(config_proj):
+    p = Project(config_proj / "schemamig.yaml")
+    J.begin(p, p.kind("tokamap-config"), "rename-value", "def:rule", {"name": "selector"})
+    _set_enum(config_proj, ["exact", "MAX_BELOW", "min_above", "closest"])
+    assert J.commit(p)["ops"][0]["values"] == {"max_below": "MAX_BELOW"}
+
+
+def test_rename_value_several_changes_need_explicit_map(config_proj):
+    p = Project(config_proj / "schemamig.yaml")
     k = p.kind("tokamap-config")
     J.begin(p, k, "rename-value", "def:rule", {"name": "selector"})
-    s = json.loads((root / "schemas.json").read_text())
-    s["$defs"]["rule"]["properties"]["selector"]["enum"] = ["MAX_BELOW", "min_above", "exact", "CLOSEST"]
-    (root / "schemas.json").write_text(json.dumps(s, indent=2))
+    _set_enum(config_proj, ["MAX_BELOW", "min_above", "exact", "CLOSEST"])
+    with pytest.raises(J.JournalError, match="--map OLD=NEW"):
+        J.commit(p)
+    J.abort(p)
+    J.begin(p, k, "rename-value", "def:rule",
+            {"name": "selector", "values": {"max_below": "MAX_BELOW", "closest": "CLOSEST"}})
+    assert J.commit(p)["ops"][0]["values"] == {"max_below": "MAX_BELOW", "closest": "CLOSEST"}
+
+
+def test_value_swap_is_invisible_to_the_schema_only_the_explicit_record_carries_it(config_proj):
+    p = Project(config_proj / "schemamig.yaml")
+    J.begin(p, p.kind("tokamap-config"), "rename-value", "def:rule",
+            {"name": "selector", "values": {"max_below": "CLOSEST", "closest": "MAX_BELOW"}})  # swapped by mistake
+    _set_enum(config_proj, ["MAX_BELOW", "min_above", "exact", "CLOSEST"])
+    # the swap yields the same *set* of values, so the schema alone cannot tell -- but the
+    # recorded intent is explicit and is what migrates documents; show it for audit
     rec = J.commit(p)
-    assert rec["ops"][0]["values"] == {"max_below": "MAX_BELOW", "closest": "CLOSEST"}
+    assert rec["options"]["values"] == {"max_below": "CLOSEST", "closest": "MAX_BELOW"}
+
+
+def test_explicit_rename_field_names(proj):
+    p = P(proj)
+    J.begin(p, p.kind(KIND), "rename-field", "def:dimension", {"from": "dim_probe", "to": "probe"})
+    edit(proj, e_rename_probe)
+    assert J.commit(p)["ops"][0] == {"op": "rename-field", "at": "def:dimension", "from": "dim_probe", "to": "probe"}
+    J.begin(p, p.kind(KIND), "rename-field", "def:dimension", {"from": "comment", "to": "note"})
+    edit(proj, lambda s: s["$defs"]["dimension"].update(
+        properties=renamed(s["$defs"]["dimension"]["properties"], "comment", "remark")))
+    with pytest.raises(J.JournalError, match="does not explain"):
+        J.commit(p)
 
 
 def test_cli_session_flow(proj, capsys):
@@ -339,7 +379,7 @@ def test_cli_session_flow(proj, capsys):
     edit(proj, e_expr)
     assert main(cfg + ["check", "--kind", KIND]) == 1
     assert main(cfg + ["change", "record", "rename-value", "def:expression", "--kind", KIND,
-                       "--name", "map_type"]) == 0
+                       "--name", "map_type", "--map", "EXPR=EXPRESSION"]) == 0
     assert main(cfg + ["check", "--kind", KIND]) == 0
     assert main(cfg + ["release", "2.0.0", "--kind", KIND, "--compat", "breaking"]) == 0
     assert main(cfg + ["check", "--kind", KIND]) == 0

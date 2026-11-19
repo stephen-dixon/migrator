@@ -205,8 +205,8 @@ release. Findings:
   3-line diff, against about 165 lines in iteration 1.
 - **Inference is reliable when scoped.** With the class declared, each class needs only
   "exactly one key added/removed/changed at the target". Anything else blocks the commit
-  with a pointer-level explanation. Pairing enum values by position is the one convention
-  developers have to know.
+  with a pointer-level explanation. Explicit parameters override inference. Multi-value enum renames
+  require `--map`, because a diff can't distinguish a rename from a swap.
 - **Overlap detection is coarse and conservative.** It is diff-based: two scopes that both
   edit an object's `required` list are flagged as overlapping even when their order doesn't
   matter. Replay is the real backstop.

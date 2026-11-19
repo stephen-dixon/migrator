@@ -37,14 +37,15 @@ from .schema import SchemaError, check_supported, deref, errors, relaxed, resolv
 CLASSES = {
     "add-field": "add one property to an object (options: required via the schema edit, --default, "
                  "--managed-version, --name)",
-    "rename-field": "rename one property",
+    "rename-field": "rename one property (--from/--to, or inferred)",
     "remove-field": "remove one property (--lossy to approve deleting values)",
     "make-required": "add one name to 'required' (--default)",
     "make-optional": "remove one name from 'required'",
     "set-field-schema": "change one property's schema (--convert to-number|to-string|to-array)",
-    "rename-value": "rename enum/const values in place (pairs by position) (--name <field>)",
-    "nest-fields": "move properties into a new sub-object",
-    "wrap": "make the target the value of a new single property",
+    "rename-value": "rename enum/const values (--name <field>; --map OLD=NEW per value, required "
+                    "unless exactly one value changed)",
+    "nest-fields": "move properties into a new sub-object (--fields a,b --into x, or inferred)",
+    "wrap": "make the target the value of a new single property (--into, or inferred)",
     "add-variant": "add union branch(es), plus any new $defs they reference",
     "unclassified": "anything else: recorded as a raw schema patch (--adapter module:function to "
                     "migrate documents)",
@@ -225,8 +226,9 @@ def infer(cls: str, target: str, opts: dict, reason: str, pre: dict, post: dict)
             spec["position"] = "start"
         return [spec]
     if cls == "rename-field":
-        return [{"op": "rename-field", "at": target, "from": _one(gone, "removed property"),
-                 "to": _one(added, "added property")}]
+        return [{"op": "rename-field", "at": target,
+                 "from": opts.get("from") or _one(gone, "removed property"),
+                 "to": opts.get("to") or _one(added, "added property")}]
     if cls == "remove-field":
         k = _one(gone, "removed property", name)
         return [{"op": "remove-field", "at": target, "name": k, **({"lossy": True} if opts.get("lossy") else {})}]
@@ -251,22 +253,28 @@ def infer(cls: str, target: str, opts: dict, reason: str, pre: dict, post: dict)
                 raise JournalError(f"no property {name!r} at {ptr}")
             vptr = deref(pre, P.child(ptr, "properties", name))
         va, vb = P.get(pre, vptr), P.get(post, vptr)
-        if "const" in va and "const" in vb:
+        if opts.get("values"):
+            mapping = dict(opts["values"])  # explicit: replay verifies the edit matches
+        elif "const" in va and "const" in vb:
             mapping = {va["const"]: vb["const"]} if va["const"] != vb["const"] else {}
         elif "enum" in va and "enum" in vb:
-            ea, eb = va["enum"], vb["enum"]
-            if len(ea) != len(eb):
-                raise JournalError(f"rename-value: enum length changed at {vptr} ({len(ea)} -> {len(eb)}); "
-                                   "values are paired by position, so add/remove values in separate changes")
-            mapping = {x: y for x, y in zip(ea, eb) if x != y}
+            old = [x for x in va["enum"] if x not in vb["enum"]]
+            new = [x for x in vb["enum"] if x not in va["enum"]]
+            if len(old) == 1 and len(new) == 1:
+                mapping = {old[0]: new[0]}
+            elif old or new:
+                raise JournalError(f"rename-value at {vptr}: {old} removed and {new} added; say which "
+                                   "becomes which with --map OLD=NEW (one per value)")
+            else:
+                mapping = {}
         else:
             raise JournalError(f"rename-value: no enum/const at {vptr}")
         if not mapping:
             raise JournalError(f"rename-value: no value changed at {vptr}")
         return [{"op": "rename-value", "at": target, **({"name": name} if name else {}), "values": mapping}]
     if cls == "nest-fields":
-        into = _one(added, "new container property")
-        fields = [k for k in pa if k in gone]
+        into = opts.get("into") or _one(added, "new container property")
+        fields = opts.get("fields") or [k for k in pa if k in gone]
         if not fields:
             raise JournalError("nest-fields: no properties were moved")
         return [{"op": "nest-fields", "at": target, "fields": fields, "into": into,
@@ -274,7 +282,8 @@ def infer(cls: str, target: str, opts: dict, reason: str, pre: dict, post: dict)
     if cls == "wrap":
         inner = {k: v for k, v in a.items() if k not in O.HOIST} if ptr == "#" else a
         cands = [k for k, v in pb.items() if D.equivalent(v, inner)]
-        return [{"op": "wrap", "at": target, "into": _one(cands, "property holding the wrapped schema", name)}]
+        into = opts.get("into") or _one(cands, "property holding the wrapped schema", name)
+        return [{"op": "wrap", "at": target, "into": into}]
     if cls == "add-variant":
         kw = "oneOf" if "oneOf" in a else "anyOf" if "anyOf" in a else None
         if kw is None:
